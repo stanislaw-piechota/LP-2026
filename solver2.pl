@@ -15,8 +15,6 @@ snake(RowHints, ColHints, Grid, Solution) :-
     blocks_in_grid(Solution, Blocks, []),
     valid_tuples(Tuples),
     tuples_in(Blocks, Tuples),
-    % Enforce per-cell neighbor-degree constraints to prune search early
-    enforce_degrees(Solution),
 
     append(Solution, FlatGrid),
     labeling([ffc], FlatGrid),
@@ -82,48 +80,30 @@ apply_hint(C, Vars) :-
 is_snake_piece(V, B) :- V #> 0 #<==> B.
 
 % --- 5. Graph Verification (Unique Path) ---
-% With FD degree constraints in place, we only need to verify that
-% (a) there are exactly two heads, and (b) all occupied cells (heads
-% and body pieces) form one connected component. This is a simple
-% connectivity check performed after labeling.
 has_unique_path(Grid) :-
-    % require exactly two heads
-    find_all_coords(Grid, 1, Heads),
-    Heads = [Start, End],
+    find_all_coords(Grid, 1, [Start, End]),
+    find_all_coords(Grid, 2, AllTwos),
+    has_one_adjacent(Start, [End|AllTwos]),
+    has_one_adjacent(End, [Start|AllTwos]),
+    trace_path(Start, End, AllTwos).
 
-    % collect all occupied coordinates (value > 0)
-    findall((X,Y), (
-        nth0(Y, Grid, Row), nth0(X, Row, V), V > 0
-    ), Occupied),
+trace_path(Current, End, []) :- !,
+    check_adjacent(Current, End).
 
-    % reachable from Start over occupied cells
-    reachable(Start, Occupied, [Start], Visited),
+trace_path(Current, End, AvailableTwos) :-
+    get_adjacent(Current, End, AvailableTwos, Next, RemainingTwos),
+    trace_path(Next, End, RemainingTwos).
 
-    % End must be reachable and all occupied cells visited
-    member(End, Visited),
-    sort(Visited, Vs), sort(Occupied, Os),
-    Vs == Os.
+check_adjacent((X, Y1), (X, Y2)) :- delta_one(Y1, Y2).
+check_adjacent((X1, Y), (X2, Y)) :- delta_one(X1, X2).
+delta_one(A, B) :- B is A + 1.
+delta_one(A, B) :- B is A - 1.
 
-% DFS over occupied coordinates
-reachable(_, _, Vis, Vis) :- Vis == [] , !, fail.
-reachable(Current, Occupied, VisIn, VisOut) :-
-    findall(N, (
-        adjacent(Current, N), member(N, Occupied), \+ member(N, VisIn)
-    ), Nexts),
-    reachable_list(Nexts, Occupied, VisIn, VisOut).
-
-reachable_list([], _, Vis, Vis).
-reachable_list([N|Ns], Occupied, VisIn, VisOut) :-
-    ( member(N, VisIn)
-    -> reachable_list(Ns, Occupied, VisIn, VisOut)
-    ;  reachable(N, Occupied, [N|VisIn], VisMid),
-       reachable_list(Ns, Occupied, VisMid, VisOut)
-    ).
-
-adjacent((X,Y),(NX,Y)) :- NX is X+1.
-adjacent((X,Y),(NX,Y)) :- NX is X-1.
-adjacent((X,Y),(X,NY)) :- NY is Y+1.
-adjacent((X,Y),(X,NY)) :- NY is Y-1.
+count_valid_moves(Current, AvailableTwos, End, Count) :-
+    aggregate_all(count, (
+        check_adjacent(Current, Step), 
+        (Step = End ; member(Step, AvailableTwos))
+    ), Count).
 
 find_all_coords(Grid, Value, Coords) :-
     findall((X, Y), (
@@ -131,38 +111,24 @@ find_all_coords(Grid, Value, Coords) :-
         nth0(X, Row, Value)
     ), Coords).
 
-% --- 6. Degree enforcement (FD constraints) ---
-enforce_degrees(Grid) :-
-    length(Grid, Rows),
-    Rows > 0,
-    nth0(0, Grid, FirstRow), length(FirstRow, Cols),
-    MaxY is Rows - 1,
-    MaxX is Cols - 1,
-    forall(between(0, MaxY, Y), (
-        nth0(Y, Grid, Row),
-        forall(between(0, MaxX, X), (
-            nth0(X, Row, Var),
-            Var #>= 0,
-            Var #> 0 #<==> _Occ,        % occupancy boolean (unused directly)
-            neighbor_coords(X, Y, MaxX, MaxY, Neis),
-            collect_ne_occ(Neis, Grid, NeOccs),
-            sum(NeOccs, #=, S),
-            (Var #= 1) #==> (S #= 1),
-            (Var #= 2) #==> (S #= 2)
-        ))
-    )).
+has_one_adjacent(_, []) :- fail.
+has_one_adjacent(Head, [Next | Available]) :-
+    check_adjacent(Head, Next),
+    !,
+    has_no_adjacent(Head, Available);
+    has_one_adjacent(Head, Available).
 
-neighbor_coords(X, Y, MaxX, MaxY, Neis) :-
-    UpY is Y - 1, DownY is Y + 1, LeftX is X - 1, RightX is X + 1,
-    findall((NX,NY), (
-        member((NX,NY), [(X,UpY),(X,DownY),(LeftX,Y),(RightX,Y)]),
-        NX >= 0, NY >= 0, NX =< MaxX, NY =< MaxY
-    ), Neis).
+has_no_adjacent(_, []).
+has_no_adjacent(Head, [Next | Available]) :-
+    not(check_adjacent(Head, Next)),
+    has_no_adjacent(Head, Available).
 
-collect_ne_occ([], _, []).
-collect_ne_occ([(NX,NY)|T], Grid, [Occ|OccT]) :-
-    nth0(NY, Grid, RowN),
-    nth0(NX, RowN, NVar),
-    NVar #> 0 #<==> Occ,
-    collect_ne_occ(T, Grid, OccT).
+get_adjacent(_, _, [], _, _) :- fail.
+get_adjacent(Head, End, [], End, []) :- !, check_adjacent(Head, End).
+get_adjacent(Head, _, [Next | Available], Next, Available) :-
+    check_adjacent(Head, Next),
+    !,
+    has_no_adjacent(Head, Available).
+get_adjacent(Head, End, [X | Available], Next, [X | Remaining]) :-
+    get_adjacent(Head, End, Available, Next, Remaining).
 
