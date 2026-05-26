@@ -83,18 +83,15 @@ is_snake_piece(V, B) :- V #> 0 #<==> B.
 has_unique_path(Grid) :-
     find_all_coords(Grid, 1, [Start, End]),
     find_all_coords(Grid, 2, AllTwos),
-    count_valid_moves(Start, AllTwos, End, 1),
-    count_valid_moves(End, AllTwos, Start, 1),
+    has_one_adjacent(Start, [End|AllTwos]),
+    has_one_adjacent(End, [Start|AllTwos]),
     trace_path(Start, End, AllTwos).
 
 trace_path(Current, End, []) :- !,
     check_adjacent(Current, End).
 
 trace_path(Current, End, AvailableTwos) :-
-    check_adjacent(Current, Next),
-    member(Next, AvailableTwos),
-    count_valid_moves(Current, AvailableTwos, End, 1),
-    select(Next, AvailableTwos, RemainingTwos),
+    get_adjacent(Current, End, AvailableTwos, Next, RemainingTwos),
     trace_path(Next, End, RemainingTwos).
 
 check_adjacent((X, Y1), (X, Y2)) :- delta_one(Y1, Y2).
@@ -113,3 +110,25 @@ find_all_coords(Grid, Value, Coords) :-
         nth0(Y, Grid, Row),
         nth0(X, Row, Value)
     ), Coords).
+
+has_one_adjacent(_, []) :- fail.
+has_one_adjacent(Head, [Next | Available]) :-
+    check_adjacent(Head, Next),
+    !,
+    has_no_adjacent(Head, Available);
+    has_one_adjacent(Head, Available).
+
+has_no_adjacent(_, []).
+has_no_adjacent(Head, [Next | Available]) :-
+    not(check_adjacent(Head, Next)),
+    has_no_adjacent(Head, Available).
+
+get_adjacent(_, _, [], _, _) :- fail.
+get_adjacent(Head, End, [], End, []) :- !, check_adjacent(Head, End).
+get_adjacent(Head, _, [Next | Available], Next, Available) :-
+    check_adjacent(Head, Next),
+    !,
+    has_no_adjacent(Head, Available).
+get_adjacent(Head, End, [X | Available], Next, [X | Remaining]) :-
+    get_adjacent(Head, End, Available, Next, Remaining).
+
