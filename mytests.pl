@@ -56,3 +56,5 @@ showAllSols(P) :-
        forall(member(Sol, Solutions),
               print_puzzle(RowClues, ColClues, Sol))
     ).
+
+:- [tests].

@@ -1,7 +1,5 @@
 :- use_module(library(clpfd)).
 :- use_module(library(lists)).
-:- [tests].
-:- [mytests].
 
 % Main Entry Point
 snake(RowHints, ColHints, Grid, Solution) :-
@@ -178,3 +176,5 @@ find_all_coords(Grid, Value, Coords) :-
         nth0(Y, Grid, Row),
         nth0(X, Row, Value)
     ), Coords).
+
+:- [mytests].
