@@ -1,20 +1,22 @@
-% Test to ensure our program does not allow diagonals, should fail.
+%% Custom tests, each case has either one or zero solutions.
+
+% Ensure our program does not allow diagonals, should fail.
 puzzle(no_diagonals, [1, 1, 1], [1, 1, 1],
     [[ 1, -1, -1],
      [-1,  2, -1],
      [-1, -1,  1]]).
 
-% Test ability to solve puzzles with pre-filled obstacles
+% Solve puzzles with pre-filled obstacles
 puzzle(obstacles, [-1, -1, -1, -1], [-1, -1, -1, -1],
     [[ 1, -1,  0,  1],
      [-1,  0,  0, -1],
      [-1, -1,  0, -1],
-     [-1, -1, -1, -1]]).
+     [ 0, -1, -1, -1]]).
 
 % Testing with certain target points the snake must go through
 puzzle(prefilled, [-1, -1, -1, -1, -1], [-1, -1, -1, -1, -1],
     [[ 1, -1, -1, -1,  1],
-     [-1,  2, -1,  2, -1],
+     [-1,  2, -1,  2,  2],
      [-1, -1, -1, -1, -1],
      [-1, -1, -1, -1, -1],
      [ 2, -1,  2, -1, -1]]).
@@ -30,7 +32,7 @@ puzzle(disconnected_endpoints, [-1, -1, -1], [-1, 0, -1],
      [-1,  0, -1],
      [-1,  0,  1]]).
 
-% Challenging test case. 7x7 grid, only one solution.
+% Challenging test case. 7x7 grid
 puzzle(challenge, [3, 4, -1, -1, -1, -1, 5], [-1, -1, -1, -1, 5, 4, -1],
     [[-1,  0, -1, -1, -1, -1, -1],
      [ 1, -1, -1,  0, -1, -1, -1],
@@ -42,7 +44,7 @@ puzzle(challenge, [3, 4, -1, -1, -1, -1, 5], [-1, -1, -1, -1, 5, 4, -1],
 
 
 
-%% Shows all solutions for a single puzzle
+%% Shows all solutions for a single puzzle (REMEMBER TO TAKE THIS OUT BEFORE SUBMITTING)
 showAllSols(P) :-
     format("~n=== ~w ===~n", [P]),
     puzzle(P, RowClues, ColClues, Grid),
