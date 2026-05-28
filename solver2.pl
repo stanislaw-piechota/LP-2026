@@ -1,7 +1,7 @@
 :- use_module(library(clpfd)).
 :- use_module(library(lists)).
 :- [tests].
-:- [mytests].
+% :- [mytests].
 
 % Main Entry Point
 snake(RowHints, ColHints, Grid, Solution) :-
@@ -23,7 +23,6 @@ snake(RowHints, ColHints, Grid, Solution) :-
 
     once(has_unique_path(Solution)).
 
-% --- 1. Safe Block Extraction (Notice the Cuts `!`) ---
 blocks_in_grid([R1, R2 | Rows], Blocks, Tail) :- !,
     blocks_in_rows(R1, R2, Blocks, Tail1),
     blocks_in_grid([R2 | Rows], Tail1, Tail).
@@ -33,7 +32,6 @@ blocks_in_rows([X1, X2 | R1], [Y1, Y2 | R2], [[X1, X2, Y1, Y2] | Blocks], Tail) 
     blocks_in_rows([X2 | R1], [Y2 | R2], Blocks, Tail).
 blocks_in_rows(_, _, Tail, Tail).
 
-% --- 2. Solution blocks constraints - avoid touching ---
 valid_tuples(Tuples) :-
     findall([A, B, C, D], valid_block([A, B, C, D]), Tuples).
 
@@ -48,12 +46,10 @@ valid_block([A, B, C, D]) :-
     
     Sum #= A_occ + B_occ + C_occ + D_occ,
     
-    % Constraint 1: Forbid 2x2 filled squares (Sum cannot be 4)
+    % No 2x2 blocks
     Sum #\= 4,
     
-    % Constraint 2: Forbid Diagonal Touching 
-    % A diagonal touch occurs if there are exactly 2 pieces (Sum=2) AND 
-    % they sit on a diagonal (A == D) or (B == C).
+    % No diagonals
     #\ (Sum #= 2 #/\ (A #= D #\/ B #= C)),
     
     label([A, B, C, D]).
@@ -76,12 +72,11 @@ copy_row([H|Ts], [H|Vs], [O|Os]) :-
     (H #> 0) #<==> O,
     copy_row(Ts, Vs, Os).
 
-% --- 4. Hint Constraints ---
+% Hints for how many snake cells are allowed in each row/column
 apply_hint(-1, _Vars) :- !.
 apply_hint(C, OccVars) :-
     sum(OccVars, #=, C).
 
-% --- 5. Degree enforcement ---
 enforce_degrees(Grid, OccGrid) :-
     length(Grid, Rows), Rows > 0,
     nth0(0, Grid, FirstRow), length(FirstRow, Cols),
@@ -133,7 +128,7 @@ count_neighbors(X, Y, OccGrid, MaxX, MaxY, Count) :-
     neis_to_occs(Neis, OccGrid, NeOccs),
     sum(NeOccs, #=, Count).
 
-% --- 6. Graph Verification (Unique Path) ---
+% Making sure it is a valid, complete path
 has_unique_path(Grid) :-
     % require exactly two heads
     find_all_coords(Grid, 1, Heads),
